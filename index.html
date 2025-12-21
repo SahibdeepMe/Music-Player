@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid Dream Music Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Work+Sans:wght@300;400;600&display=swap');
+
+        :root {
+            --accent: #ff007a;
+            --glass: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.7);
+            --arm-rest-deg: -60deg;
+            --arm-play-deg: -18deg;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 2000px;
+            overflow: hidden;
+        }
+
+        .liquid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #ffffff, #eef2ff);
+        }
+
+        .blob {
+            position: absolute;
+            width: 80vw;
+            height: 80vw;
+            filter: blur(80px);
+            border-radius: 50%;
+            opacity: 0.15;
+            animation: morph 15s linear infinite alternate;
+        }
+
+        @keyframes morph {
+            0% { border-radius: 40% 60% 60% 40%; transform: translate(0,0) scale(1); }
+            50% { border-radius: 60% 40% 40% 60%; transform: translate(10%, 5%) scale(1.1); }
+            100% { border-radius: 40% 60% 60% 40%; transform: translate(-5%, 10%) scale(1); }
+        }
+
+        .player-shell {
+            background: var(--glass);
+            backdrop-filter: blur(60px) saturate(200%);
+            -webkit-backdrop-filter: blur(60px) saturate(200%);
+            border: 1.5px solid var(--glass-border);
+            box-shadow: 0 50px 100px -20px rgba(0,0,0,0.1), inset 0 0 30px rgba(255,255,255,0.4);
+            border-radius: 50px;
+            width: 95%;
+            max-width: 1100px;
+            transform-style: preserve-3d;
+        }
+
+        .deck-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            transform-style: preserve-3d;
+        }
+
+        #vinyl {
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at center, #ff007a 0%, #ff007a 12%, transparent 13%),
+                repeating-radial-gradient(circle at center, #000 0, #000 1px, #1a1a1a 2px, #000 3px);
+            border-radius: 50%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            transform: translateZ(20px);
+            transition: transform 0.8s ease;
+        }
+
+        .is-spinning #vinyl { animation: spinVinyl 3s linear infinite; }
+        @keyframes spinVinyl {
+            from { transform: translateZ(20px) rotate(0deg); }
+            to { transform: translateZ(20px) rotate(360deg); }
+        }
+
+        .tonearm-stick {
+            position: absolute;
+            top: 45px;
+            right: 15px;
+            width: 140px; 
+            height: 8px;
+            background: linear-gradient(to bottom, #fff, #ddd);
+            border-radius: 10px;
+            transform-origin: calc(100% - 10px) 50%;
+            z-index: 50;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+            transform-style: preserve-3d;
+            transform: rotate(var(--arm-rest-deg)) translateZ(20px) rotateX(0deg);
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tonearm-stick::after {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: -4px;
+            width: 28px;
+            height: 16px;
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+
+        /* ARM ANIMATION STATES */
+        .arm-travel-upside { transform: rotate(var(--arm-rest-deg)) translateZ(65px) rotateX(12deg) !important; }
+        .arm-over-upside { transform: rotate(var(--arm-play-deg)) translateZ(65px) rotateX(12deg) !important; }
+        .arm-downside-play { transform: rotate(var(--arm-play-deg)) translateZ(25px) rotateX(0deg) !important; }
+        .arm-downside-rest { transform: rotate(var(--arm-rest-deg)) translateZ(20px) rotateX(0deg) !important; }
+        .arm-song-change { transform: rotate(calc(var(--arm-play-deg) - 1.5deg)) translateZ(40px) rotateX(4deg) !important; transition-duration: 0.35s !important; }
+        .arm-pause-drop { transform: rotate(var(--arm-rest-deg)) translateZ(20px) rotateX(0deg) !important; transition-duration: 1.5s !important; }
+        .arm-vibrate { animation: vibrate 4s infinite ease-in-out; }
+
+        @keyframes vibrate {
+            0%, 100% { transform: rotate(var(--arm-play-deg)) translateZ(25px) rotateX(0deg); }
+            50% { transform: rotate(calc(var(--arm-play-deg) + 0.3deg)) translateZ(26px) rotateX(0.5deg); }
+        }
+
+        .play-btn {
+            width: 80px;
+            height: 80px;
+            background: #111;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .is-playing-ui .play-btn { background: var(--accent); }
+
+        .song-item {
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 12px 18px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .song-item.active {
+            background: white;
+            border-color: var(--accent);
+            box-shadow: 0 5px 15px rgba(255, 0, 122, 0.1);
+        }
+
+        .syncopate { font-family: 'Syncopate', sans-serif; letter-spacing: 2px; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 2px;
+            margin: 20px 0;
+            position: relative;
+            cursor: pointer;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Tooltip Style */
+        .tooltip-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .side-tooltip {
+            position: absolute;
+            left: 100%;
+            margin-left: 15px;
+            background: #111;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .side-tooltip::before {
+            content: '';
+            position: absolute;
+            right: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 5px solid transparent;
+            border-right-color: #111;
+        }
+
+        .tooltip-container:hover .side-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="mb-4 animate-spin text-pink-500 text-3xl">
+            <i class="fas fa-circle-notch"></i>
+        </div>
+        <p class="syncopate text-[10px] font-bold text-slate-600">Syncing GitHub...</p>
+    </div>
+
+    <div class="liquid-bg">
+        <div class="blob" style="top: -10%; left: -5%; background: #ff007a;"></div>
+        <div class="blob" style="bottom: -15%; right: -5%; background: #7000ff;"></div>
+    </div>
+
+    <div id="player-main" class="player-shell overflow-hidden relative mx-auto">
+        <div class="flex flex-col md:flex-row">
+            
+            <!-- Sidebar with Tooltips -->
+            <div class="w-16 border-r border-black/5 flex flex-col items-center py-10 gap-8">
+                <div class="tooltip-container">
+                    <button onclick="relinkFolder()" class="text-slate-400 hover:text-pink-500 transition-all group">
+                        <i class="fas fa-folder-open text-xl group-hover:scale-110"></i>
+                    </button>
+                    <span class="side-tooltip syncopate">LOCAL FOLDER</span>
+                </div>
+
+                <div class="tooltip-container">
+                    <button onclick="fetchGitHubSongs()" class="text-slate-400 hover:text-pink-500 transition-all group">
+                        <i class="fab fa-github text-xl group-hover:scale-110"></i>
+                    </button>
+                    <span class="side-tooltip syncopate">PREDEFINED SONGS</span>
+                </div>
+            </div>
+
+            <!-- Main Content (Left) -->
+            <div class="flex-1 p-10 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-black/5">
+                <div class="deck-container">
+                    <div class="absolute top-[35px] right-[5px] w-12 h-12 bg-white rounded-full shadow-lg z-[40]"></div>
+                    <div class="tonearm-stick arm-downside-rest" id="stick"></div>
+                    <div id="vinyl">
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div class="w-24 h-24 bg-white/10 rounded-full border-[1px] border-white/20"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center w-full mt-8">
+                    <p class="syncopate text-[10px] text-pink-500 font-bold mb-2 uppercase tracking-tighter">Liquid Dreaming</p>
+                    <h1 id="current-name" class="text-xl md:text-2xl font-bold text-slate-900 mb-2 truncate w-full px-4">Select Source</h1>
+                    
+                    <div class="progress-container" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-8 mb-8">
+                        <button onclick="prevSong()" class="text-slate-400 hover:text-pink-500 transition-colors"><i class="fas fa-step-backward text-xl"></i></button>
+                        <button id="main-play-btn" onclick="togglePlay()" class="play-btn"><i id="play-icon" class="fas fa-play ml-1"></i></button>
+                        <button onclick="nextSong()" class="text-slate-400 hover:text-pink-500 transition-colors"><i class="fas fa-step-forward text-xl"></i></button>
+                    </div>
+
+                    <div class="flex items-center gap-4 px-6">
+                        <i class="fas fa-volume-down text-slate-300"></i>
+                        <input type="range" id="volume-slider" class="w-full accent-pink-500" min="0" max="1" step="0.01" value="0.7">
+                        <i class="fas fa-volume-up text-pink-500"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playlist Area (Right) -->
+            <div class="w-full md:w-5/12 p-8 md:p-10 flex flex-col h-[650px]">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="syncopate text-[11px] font-bold text-slate-400" id="folder-display">Playlist</h2>
+                </div>
+
+                <div class="bg-white border border-black/5 rounded-2xl p-3 flex items-center gap-3 mb-6 shadow-sm">
+                    <i class="fas fa-search text-slate-300"></i>
+                    <input type="text" id="search-input" class="bg-transparent border-none outline-none w-full text-sm font-medium" placeholder="Search songs..." oninput="filterSongs()">
+                </div>
+                
+                <div id="song-list" class="space-y-2 overflow-y-auto pr-3 custom-scroll flex-1">
+                    <div class="text-center py-20 opacity-40" id="empty-state">
+                        <i class="fas fa-compact-disc text-4xl mb-4"></i>
+                        <p class="text-xs uppercase font-bold">No songs loaded</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-engine"></audio>
+
+    <script type="module">
+        import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm';
+
+        const GITHUB_USER = 'SahibdeepMe';
+        const GITHUB_REPO = 'Music-Player';
+        const GITHUB_PATH = 'Songs';
+
+        const audio = document.getElementById('audio-engine');
+        const playIcon = document.getElementById('play-icon');
+        const playerMain = document.getElementById('player-main');
+        const songListElement = document.getElementById('song-list');
+        const nameDisplay = document.getElementById('current-name');
+        const stick = document.getElementById('stick');
+        const searchInput = document.getElementById('search-input');
+        const progressFill = document.getElementById('progress-fill');
+        const progressBar = document.getElementById('progress-bar');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const folderDisplay = document.getElementById('folder-display');
+
+        let playlist = [];
+        let filteredPlaylist = [];
+        let currentLoadedIndex = -1;
+        let isPlaying = false;
+        let isTransitioning = false;
+
+        window.fetchGitHubSongs = async () => {
+            loadingOverlay.style.display = 'flex';
+            try {
+                const res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_PATH}`);
+                const data = await res.json();
+                
+                playlist = data
+                    .filter(file => file.name.match(/\.(mp3|wav|ogg|m4a)$/i))
+                    .map(file => ({
+                        title: file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
+                        url: file.download_url,
+                        isHandle: false
+                    }));
+
+                folderDisplay.innerText = "GitHub Storage";
+                filterSongs();
+            } catch (err) {
+                alert("GitHub fetch failed.");
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        };
+
+        window.relinkFolder = async () => {
+            try {
+                const handle = await window.showDirectoryPicker();
+                await set('songs-folder-handle', handle);
+                scanFolder(handle);
+            } catch (err) {}
+        };
+
+        async function scanFolder(handle) {
+            playlist = [];
+            for await (const entry of handle.values()) {
+                if (entry.kind === 'file' && entry.name.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+                    playlist.push({
+                        title: entry.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' '),
+                        handle: entry,
+                        isHandle: true
+                    });
+                }
+            }
+            folderDisplay.innerText = `Local: ${handle.name}`;
+            filterSongs();
+        }
+
+        window.filterSongs = () => {
+            const term = searchInput.value.toLowerCase();
+            filteredPlaylist = playlist.filter(s => s.title.toLowerCase().includes(term));
+            render();
+        }
+
+        function render() {
+            if (filteredPlaylist.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                songListElement.innerHTML = '';
+                return;
+            }
+            document.getElementById('empty-state').classList.add('hidden');
+            songListElement.innerHTML = filteredPlaylist.map((song, idx) => `
+                <div class="song-item ${currentLoadedIndex === idx ? 'active' : ''}" onclick="selectSong(${idx})">
+                    <div class="w-8 h-8 flex items-center justify-center bg-black/5 rounded-full text-[10px] font-bold">
+                        ${(idx + 1).toString().padStart(2, '0')}
+                    </div>
+                    <div class="flex-1 truncate">
+                        <span class="font-semibold text-[11px] text-slate-700">${song.title}</span>
+                    </div>
+                    <i class="fas ${currentLoadedIndex === idx && isPlaying ? 'fa-volume-up text-pink-500' : 'fa-play text-slate-300'} text-[10px]"></i>
+                </div>
+            `).join('');
+        }
+
+        async function resetArmClasses() {
+            stick.classList.remove('arm-downside-rest', 'arm-travel-upside', 'arm-over-upside', 'arm-downside-play', 'arm-vibrate', 'arm-song-change', 'arm-pause-drop');
+            void stick.offsetWidth; 
+        }
+
+        async function animateArm(action) {
+            isTransitioning = true;
+            playerMain.classList.remove('is-spinning');
+            if (action === 'play') {
+                await resetArmClasses();
+                stick.classList.add('arm-travel-upside');
+                await new Promise(r => setTimeout(r, 800));
+                stick.classList.add('arm-over-upside');
+                await new Promise(r => setTimeout(r, 800));
+                stick.classList.add('arm-downside-play');
+                await new Promise(r => setTimeout(r, 1000));
+                playerMain.classList.add('is-spinning');
+                stick.classList.add('arm-vibrate');
+            } else if (action === 'pause') {
+                await resetArmClasses();
+                stick.classList.add('arm-pause-drop');
+                await new Promise(r => setTimeout(r, 1500));
+                stick.classList.add('arm-downside-rest');
+            } else if (action === 'skip') {
+                await resetArmClasses();
+                stick.classList.add('arm-song-change');
+                await new Promise(r => setTimeout(r, 350));
+                stick.classList.add('arm-downside-play');
+                await new Promise(r => setTimeout(r, 500));
+                playerMain.classList.add('is-spinning');
+                stick.classList.add('arm-vibrate');
+            }
+            isTransitioning = false;
+        }
+
+        window.selectSong = async (index, isSkip = false) => {
+            if (index < 0 || index >= filteredPlaylist.length || isTransitioning) return;
+            const song = filteredPlaylist[index];
+            
+            let url;
+            if (song.isHandle) {
+                const file = await song.handle.getFile();
+                url = URL.createObjectURL(file);
+            } else {
+                url = song.url;
+            }
+
+            currentLoadedIndex = index;
+            nameDisplay.innerText = song.title;
+            audio.src = url;
+            isPlaying = true;
+            updateUI();
+            await animateArm(isSkip ? 'skip' : 'play');
+            audio.play();
+            render();
+        };
+
+        window.togglePlay = async () => {
+            if (isTransitioning || filteredPlaylist.length === 0) return;
+            if (currentLoadedIndex === -1) {
+                selectSong(0);
+                return;
+            }
+            if (isPlaying) {
+                isPlaying = false;
+                audio.pause();
+                updateUI();
+                await animateArm('pause');
+            } else {
+                isPlaying = true;
+                updateUI();
+                await animateArm('play'); 
+                audio.play();
+            }
+            render();
+        };
+
+        window.nextSong = () => selectSong((currentLoadedIndex + 1) % filteredPlaylist.length, true);
+        window.prevSong = () => selectSong((currentLoadedIndex - 1 + filteredPlaylist.length) % filteredPlaylist.length, true);
+        
+        function updateUI() {
+            playIcon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play ml-1';
+            playerMain.classList.toggle('is-playing-ui', isPlaying);
+        }
+
+        audio.ontimeupdate = () => {
+            if (!audio.duration) return;
+            progressFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+        };
+
+        progressBar.onclick = (e) => {
+            if (!audio.duration) return;
+            audio.currentTime = (e.offsetX / progressBar.offsetWidth) * audio.duration;
+        };
+
+        audio.addEventListener('ended', () => nextSong());
+        document.getElementById('volume-slider').oninput = (e) => audio.volume = e.target.value;
+
+        get('songs-folder-handle').then(handle => {
+            if (handle) handle.queryPermission().then(res => {
+                if (res === 'granted') scanFolder(handle);
+            });
+        });
+    </script>
+</body>
+</html>
