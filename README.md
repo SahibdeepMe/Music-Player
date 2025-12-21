@@ -3,7 +3,7 @@
 **A premium, glassmorphism-style web music player with a realistic physical turntable experience.**
 
 🌐 **Live Website:**  
-👉 https://sahibdeepme.github.io/Radio-Player/ 👈
+👉 https://sahibdeepme.github.io/Music-Player/ 👈
 
 ---
 
